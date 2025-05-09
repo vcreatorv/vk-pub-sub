@@ -1,1 +1,1 @@
-# vk-pub-sub
+# vk-sub-pub
