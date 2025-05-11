@@ -8,8 +8,12 @@ up:
 
 # Запуск сервиса подписок
 run-subpub:
-	go run ./cmd/subpub/main.go
+	go run ./cmd/subpub/main.go --config configs/subpub.yml
 
 # Запуск клиента
 run-client:
-	go run ./cmd/app/main.go
+	go run ./cmd/app/main.go --config app/app.yml
+
+# Запуск тестов
+test:
+	go test -v ./internal/usecase/service
