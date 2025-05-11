@@ -11,8 +11,6 @@
 
 ## Часть 1: Пакет `subpub`
 
-### Цель
-
 Реализовать интерфейс шины событий, соответствующий следующему API:
 
 ```go
@@ -111,7 +109,7 @@ make up
 make run-subpub
 ```
 
-Или
+или
 ```bash
 go run ./cmd/subpub/main.go --config configs/subpub.yml
 ```
@@ -121,10 +119,14 @@ go run ./cmd/subpub/main.go --config configs/subpub.yml
 make run-client
 ```
 
-Или
+или
 ```bash
 go run ./cmd/app/main.go --config app/app.yml
 ```
+
+**Флаги командной строки:**
+
+- `--config`: Путь до файла конфигурации
 
 ## Тестирование
 
@@ -133,7 +135,7 @@ go run ./cmd/app/main.go --config app/app.yml
 make test
 ```
 
-Или
+или
 ```bash
 go test -v ./internal/usecase/service
 ```
