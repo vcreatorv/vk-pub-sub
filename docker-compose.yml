@@ -1,0 +1,10 @@
+services:
+  subpub:
+    build:
+      context: .
+      dockerfile: deploy/subpub.dockerfile
+    container_name: subpub
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+    command: ["./.bin", "-config", "./configs/subpub.yml"]

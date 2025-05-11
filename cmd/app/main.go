@@ -16,11 +16,7 @@ import (
 	"time"
 )
 
-const (
-	VK       = "VK"
-	Telegram = "Telegram"
-	Avito    = "Avito"
-)
+const VK = "VK"
 
 var configPath = flag.String("config", "configs/app.yml", "путь до файла конфигураций")
 
@@ -62,7 +58,7 @@ func main() {
 
 	go func() {
 		ctx := context.Background()
-		ctx = utils.SetTimeout(ctx, 2*time.Second)
+		ctx = utils.SetTimeout(ctx, 1*time.Second)
 		stream, err := subPubClient.Subscribe(ctx, &pb.SubscribeRequest{Key: VK})
 		if err != nil {
 			log.Println(err)
@@ -79,7 +75,7 @@ func main() {
 		}
 	}()
 
-	for i := 0; i < 35; i++ {
+	for i := 0; i < 5; i++ {
 		_, err := subPubClient.Publish(context.Background(), &pb.PublishRequest{
 			Key:  VK,
 			Data: fmt.Sprintf("Стажировка #%d", i+1),
