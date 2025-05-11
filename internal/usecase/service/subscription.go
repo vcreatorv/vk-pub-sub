@@ -26,11 +26,19 @@ func (s *SubscriptionImpl) Unsubscribe() {
 }
 
 func (s *SubscriptionImpl) Listen() {
-	for msg := range s.messages {
-		if !s.active {
-			return
+	for {
+		select {
+		case msg, ok := <-s.messages:
+			s.mute.RLock()
+			active := s.active
+			s.mute.RUnlock()
+
+			if !ok || !active {
+				log.Printf("%s: канал закрыт", s.id)
+				return
+			}
+			log.Printf("%s подписчик получил уведомление от %s: %v", s.id, s.subject, msg)
+			s.handler(msg)
 		}
-		log.Printf("%s подписчик получил уведомление от %s: %v", s.id, s.subject, msg)
-		s.handler(msg)
 	}
 }

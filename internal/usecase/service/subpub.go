@@ -27,7 +27,7 @@ func (s *SubPubImpl) Subscribe(subject string, cb uc.MessageHandler) (uc.Subscri
 	defer s.mute.Unlock()
 
 	if s.closed {
-		return nil, errors.New("subpub недоступен")
+		return nil, errors.New("сервис подписок недоступен")
 	}
 
 	id := utils.GenerateID()
@@ -62,7 +62,7 @@ func (s *SubPubImpl) Publish(subject string, msg interface{}) error {
 	defer s.mute.Unlock()
 
 	if s.closed {
-		return errors.New("subpub недоступен")
+		return errors.New("сервис подписок недоступен")
 	}
 
 	subs, ok := s.topics[subject]
@@ -72,10 +72,12 @@ func (s *SubPubImpl) Publish(subject string, msg interface{}) error {
 
 	for _, sub := range subs {
 		sub.mute.Lock()
-		select {
-		case sub.messages <- msg:
-		default:
-			log.Printf("%s: подписчик получил максимальное количество уведомлений", sub.id)
+		if sub.active {
+			select {
+			case sub.messages <- msg:
+			default:
+				log.Printf("%s: подписчик получил максимальное количество уведомлений", sub.id)
+			}
 		}
 		sub.mute.Unlock()
 	}
@@ -96,7 +98,7 @@ func (s *SubPubImpl) Close(ctx context.Context) error {
 
 	select {
 	case <-done:
-		log.Println("все горутины подписок выполнены")
+		log.Println("Все горутины подписок выполнены")
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

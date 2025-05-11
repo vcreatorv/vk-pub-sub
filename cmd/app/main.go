@@ -2,8 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/vcreatorv/vk-sub-pub/internal/usecase/service"
+	"flag"
+	"fmt"
+	"github.com/vcreatorv/vk-sub-pub/internal/config"
+	"github.com/vcreatorv/vk-sub-pub/internal/delivery/grpc/interceptors"
+	pb "github.com/vcreatorv/vk-sub-pub/internal/delivery/grpc/subpub/proto"
+	"github.com/vcreatorv/vk-sub-pub/internal/utils"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"gopkg.in/yaml.v2"
 	"log"
+	"os"
 	"time"
 )
 
@@ -13,74 +22,72 @@ const (
 	Avito    = "Avito"
 )
 
+var configPath = flag.String("config", "configs/app.yml", "путь до файла конфигураций")
+
+func LoadConfig() (*config.AppConfig, error) {
+	flag.Parse()
+
+	yamlFile, err := os.ReadFile(*configPath)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка чтения файла конфигурации: %w", err)
+	}
+
+	var cfg config.AppConfig
+	if err := yaml.Unmarshal(yamlFile, &cfg); err != nil {
+		return nil, fmt.Errorf("ошибка парсинга yaml файла: %w", err)
+	}
+
+	return &cfg, nil
+}
+
 func main() {
-	sp := service.NewSubPub()
-
-	sub1, err := sp.Subscribe(VK, func(msg interface{}) {
-		log.Printf("%s fast subscriber", VK)
-	})
+	cfg, err := LoadConfig()
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 
-	sub2, err := sp.Subscribe(Telegram, func(msg interface{}) {
-		log.Printf("%s fast subscriber", Telegram)
-	})
+	grpcConn, err := grpc.NewClient(
+		cfg.GetAddr(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStreamInterceptor(interceptors.TimeoutClientInterceptor()),
+	)
+
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 
-	sub3, err := sp.Subscribe(Avito, func(msg interface{}) {
-		time.Sleep(4 * time.Second)
-		log.Printf("%s slow subscriber", Avito)
-	})
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	defer grpcConn.Close()
 
-	err = sp.Publish(VK, "Открыт набор на стажировку по Go!")
-	if err != nil {
-		log.Println(err)
-	}
+	subPubClient := pb.NewPubSubClient(grpcConn)
 
-	err = sp.Publish(VK, "Открыт набор на стажировку по Java!")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = sp.Publish(VK, "Открыт набор на стажировку по ML!")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = sp.Publish(Telegram, "Открыт набор на стажировку по Go!")
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = sp.Publish(Avito, "Открыт набор на стажировку по Go!")
-	if err != nil {
-		log.Println(err)
-	}
-
-	time.Sleep(2 * time.Second)
-
-	sub1.Unsubscribe()
-	sub2.Unsubscribe()
-	sub3.Unsubscribe()
-
-	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		time.Sleep(1 * time.Second)
-		cancel()
+		ctx := context.Background()
+		ctx = utils.SetTimeout(ctx, 2*time.Second)
+		stream, err := subPubClient.Subscribe(ctx, &pb.SubscribeRequest{Key: VK})
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		for {
+			event, err := stream.Recv()
+			if err != nil {
+				log.Printf("Stream error: %v", err)
+				return
+			}
+			log.Printf("%s Пришло сообщение: %s", VK, event.Data)
+		}
 	}()
 
-	err = sp.Close(ctx)
-	if err != nil {
-		log.Println(err)
-		return
+	for i := 0; i < 35; i++ {
+		_, err := subPubClient.Publish(context.Background(), &pb.PublishRequest{
+			Key:  VK,
+			Data: fmt.Sprintf("Стажировка #%d", i+1),
+		})
+		if err != nil {
+			log.Print(err)
+		}
 	}
+	time.Sleep(10 * time.Second)
+	log.Println("Завершение работы клиента...")
 }
